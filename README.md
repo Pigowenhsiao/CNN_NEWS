@@ -107,6 +107,9 @@ CONCURRENT_TASKS_LIMIT=3
 
 # Output configuration
 OUTPUT_FILE_PREFIX=US_News
+
+# Max articles to process per source
+MAX_ARTICLES_PER_SOURCE=10
 ```
 
 If these variables are not set, the application will use the default values shown above.
@@ -120,6 +123,7 @@ The configuration includes:
 - **Output Format**: Configurable prefix for the Markdown output files
 - **Deduplication**: Based on article title normalization
 - **Automatic Cleanup**: Removal of output files older than 30 days
+- **Max Articles Per Source**: The maximum number of articles to process from each source (default: 10)
 
 ## Architecture
 

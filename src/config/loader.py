@@ -34,6 +34,9 @@ def load_config():
         
         # Output configuration
         'output_file_prefix': os.getenv('OUTPUT_FILE_PREFIX', 'US_News'),
+        
+        # Max articles to process per source
+        'max_articles_per_source': int(os.getenv('MAX_ARTICLES_PER_SOURCE', '10')),
     }
     
     # Validate URLs

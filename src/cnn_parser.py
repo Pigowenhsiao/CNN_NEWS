@@ -80,8 +80,10 @@ async def get_cnn_articles(url: str = None) -> List[Dict[str, Any]]:
                         
                         print(f"Found CNN article: {title[:50]}...")  # Truncate for display
                         
-                        # Limit to 10 articles to avoid processing too many
-                        if len(articles) >= 10:
+                        # Limit to configured number of articles to avoid processing too many
+                        config = load_config()
+                        if len(articles) >= config['max_articles_per_source']:
+                            log_info(f"Reached maximum article limit ({config['max_articles_per_source']}) on CNN", "cnn_parser")
                             break
                             
     except Exception as e:
@@ -158,6 +160,9 @@ async def extract_cnn_content(url: str) -> Optional[Dict[str, Any]]:
     
     # Apply rate limiting before making the request (using a simple sleep)
     await asyncio.sleep(3.5)  # 3-5 second rate limit
+    
+    # Load configuration
+    config = load_config()
     
     # Check if content is already cached
     cached_result = content_cache.get(url, "")
