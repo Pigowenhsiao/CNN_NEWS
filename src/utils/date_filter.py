@@ -1,5 +1,5 @@
 """
-Date/time parsing and 72-hour filtering logic for news articles
+Date/time parsing and configurable filtering logic for news articles
 """
 import sys
 from datetime import datetime, timedelta, timezone
@@ -12,21 +12,26 @@ src_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(src_dir))
 
 from models.article import EnhancedNewsArticle
+from config.loader import load_config
 
 
-def is_within_72_hours(pub_date: datetime) -> bool:
+def is_within_timeframe(pub_date: datetime, hours: int = None) -> bool:
     """
-    Check if an article's publication date is within the last 72 hours (3 days)
+    Check if an article's publication date is within the specified timeframe
     to ensure news relevance as required by constitution principle.
     
     Args:
         pub_date (datetime): The publication date to check
+        hours (int, optional): Number of hours for the timeframe. If not provided, uses configured value.
         
     Returns:
-        bool: True if date is within 72 hours of current time, False otherwise
+        bool: True if date is within the timeframe of current time, False otherwise
     """
     if not pub_date:
         return False
+    
+    config = load_config()
+    max_hours = hours if hours is not None else config['date_filter_hours']
     
     # Ensure both dates are timezone-aware for comparison
     now = datetime.now(timezone.utc)
@@ -38,9 +43,24 @@ def is_within_72_hours(pub_date: datetime) -> bool:
     # Calculate time difference
     time_diff = now - pub_date
     
-    # Check if the difference is less than or equal to 72 hours
-    max_allowed = timedelta(hours=72)
+    # Check if the difference is less than or equal to the specified hours
+    max_allowed = timedelta(hours=max_hours)
     return time_diff <= max_allowed
+
+
+def is_within_72_hours(pub_date: datetime) -> bool:
+    """
+    Check if an article's publication date is within the last 72 hours (3 days)
+    to ensure news relevance as required by constitution principle.
+    This function is maintained for backward compatibility.
+    
+    Args:
+        pub_date (datetime): The publication date to check
+        
+    Returns:
+        bool: True if date is within 72 hours of current time, False otherwise
+    """
+    return is_within_timeframe(pub_date, 72)
 
 
 def parse_article_date(date_string: str, source: str) -> datetime:

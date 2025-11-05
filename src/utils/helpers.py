@@ -110,3 +110,34 @@ def handle_request_failure(status_code: int, url: str) -> Dict[str, Any]:
         error_details["message"] = f"Unexpected status {status_code} for {url}"
     
     return error_details
+
+
+def handle_parsing_failure(exception: Exception, source: str = "unknown") -> Dict[str, Any]:
+    """
+    Handle parsing failures during HTML parsing with appropriate classification
+    """
+    error_details = {
+        "source": source,
+        "exception_type": type(exception).__name__,
+        "message": str(exception),
+        "timestamp": datetime.now().isoformat(),
+        "handled": True
+    }
+    
+    return error_details
+
+
+def handle_file_operation_failure(operation: str, file_path: str, exception: Exception) -> Dict[str, Any]:
+    """
+    Handle file operation failures with appropriate error classification
+    """
+    error_details = {
+        "operation": operation,
+        "file_path": file_path,
+        "exception_type": type(exception).__name__,
+        "message": str(exception),
+        "timestamp": datetime.now().isoformat(),
+        "handled": True
+    }
+    
+    return error_details

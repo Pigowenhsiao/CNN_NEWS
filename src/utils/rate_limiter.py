@@ -1,19 +1,28 @@
 """
-Rate limiting module with 3-5 second delays between requests to avoid being blocked by websites
+Rate limiting module with configurable delays between requests to avoid being blocked by websites
 """
 import asyncio
 import random
 from datetime import datetime
+import sys
+from pathlib import Path
+
+# Add the src directory to Python path for absolute imports
+src_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(src_dir))
+
+from config.loader import load_config
 
 
 class RateLimiter:
     """
-    Implements rate limiting by waiting 3-5 seconds between each request to avoid being blocked by websites
+    Implements rate limiting by waiting configurable seconds between each request to avoid being blocked by websites
     """
     
-    def __init__(self, min_delay: float = 3.0, max_delay: float = 5.0):
-        self.min_delay = min_delay
-        self.max_delay = max_delay
+    def __init__(self, min_delay: float = None, max_delay: float = None):
+        config = load_config()
+        self.min_delay = min_delay if min_delay is not None else config['rate_limit_min_delay']
+        self.max_delay = max_delay if max_delay is not None else config['rate_limit_max_delay']
         self.last_request_time = None
         
     async def wait_if_needed(self):

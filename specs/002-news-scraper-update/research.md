@@ -1,136 +1,51 @@
-# Research Document: Dual Source Financial News Scraper Update
+# Research Findings: Dual Source Financial News Scraper Update
 
-## Overview
-This document outlines the research findings and decisions for implementing enhancements to the dual-source financial news scraper that accesses CNBC and CNN business sections.
+## Decision: Use python-dotenv for configuration management
 
-## Technology Decisions
+### Rationale:
+The python-dotenv library is the standard approach for managing configuration in Python applications. It provides a clean separation between code and configuration, which aligns with the modularity principle from the constitution. It allows users to easily set environment variables in a .env file without modifying code.
 
-### Decision: Python 3.12.7 as the primary language
-**Rationale**: Python is ideal for web scraping tasks with excellent libraries for HTTP requests, HTML parsing, and date handling. The 3.12.7 version provides the latest features and security updates.
+### Alternatives considered:
+1. Using only OS environment variables - Requires manual setup by users in their shell environment
+2. Configuration files in JSON/YAML format - Would require additional parsing code and dependencies
+3. Command-line arguments - Would make running the script more complex and error-prone
 
-**Alternatives considered**: 
-- Node.js with Puppeteer: Would require more complex setup for parsing
-- Go: Excellent performance but less mature ecosystem for web scraping
-- Rust: High performance but steeper learning curve for text processing
+## Decision: Implement configurable retry mechanism with exponential backoff
 
-### Decision: httpx for HTTP requests
-**Rationale**: httpx provides both synchronous and asynchronous request capabilities, with better modern features than requests library. It's perfect for concurrent scraping from multiple sources.
+### Rationale:
+Based on the clarification about retrying 3 times before reporting failure, implementing a configurable retry mechanism with exponential backoff will provide resilience against temporary network issues while respecting website rate limits. This approach balances reliability with responsible scraping practices.
 
-**Alternatives considered**:
-- requests: Synchronous only, limiting concurrency options
-- aiohttp: Good async support but requires more boilerplate code
-- urllib3: Lower-level, more complex to use
+### Alternatives considered:
+1. No retries - Would result in more failed scrapes during temporary network issues
+2. Infinite retries - Could cause the application to hang indefinitely
+3. Fixed delay retries - Less effective than exponential backoff for varying network conditions
 
-### Decision: BeautifulSoup4 for HTML parsing
-**Rationale**: BeautifulSoup4 is the gold standard for HTML parsing in Python, with excellent support for handling malformed HTML and flexible selector options.
+## Decision: Implement content validation with minimum length check
 
-**Alternatives considered**:
-- lxml: Faster but more complex XPath syntax
-- selectolax: Faster but less mature ecosystem
-- PyQuery: Less commonly used, similar performance to BeautifulSoup4
+### Rationale:
+Based on the clarification that content should have a minimum of 50 characters, this provides a reasonable threshold to ensure that articles have meaningful content rather than just titles or metadata. This helps maintain data quality.
 
-### Decision: python-dateutil for date/time handling
-**Rationale**: python-dateutil provides robust parsing for various date formats that might be used across different news sources.
+### Alternatives considered:
+1. No content validation - Could result in articles with minimal or no content
+2. More complex validation (keyword checks, structure analysis) - Would be overly complex and potentially fragile
+3. Different character thresholds - 50 characters is a reasonable minimum for meaningful content
 
-**Alternatives considered**:
-- Standard datetime only: Would require manual parsing for different formats
-- pendulum: More feature-rich but potentially overkill for this use case
-- arrow: Good alternative but less commonly used than dateutil
+## Decision: Use multiple CSS selectors as fallbacks for parsing
 
-## Architecture Decisions
+### Rationale:
+Based on the clarification about using multiple selectors as backup, this approach will make the scraper more resilient to changes in website HTML structure. When one selector fails, the application can try alternative selectors to extract the needed information.
 
-### Decision: Modular architecture with separate parser modules
-**Rationale**: Separating CNN and CNBC parsing logic into distinct modules allows for independent maintenance and updates when site structures change.
+### Alternatives considered:
+1. Single selectors only - Would break when websites change their HTML structure
+2. Regular expressions instead of selectors - Less reliable and harder to maintain
+3. Machine learning approaches - Overly complex for this use case
 
-**Alternative considered**: Single parser with conditional logic - would create a monolithic, harder-to-maintain codebase.
+## Decision: Limit concurrent scraping tasks to 3
 
-### Decision: Asynchronous processing with asyncio
-**Rationale**: Allows concurrent scraping from both sources, maximizing efficiency while respecting rate limits.
+### Rationale:
+Based on the clarification about allowing at most 3 concurrent tasks, this provides a balance between scraping efficiency and avoiding being blocked by target websites. Limiting concurrency also helps control memory usage and system resources.
 
-**Alternative considered**: Synchronous processing - would be significantly slower for multiple sources.
-
-### Decision: Strict 72-hour date filtering at the core
-**Rationale**: Ensures only timely, relevant news is processed, meeting the primary requirement for financial news relevance.
-
-## Implementation Considerations
-
-### Error Handling Strategy
-- Implement retry mechanisms for HTTP request failures
-- Handle cases where date information is missing from articles
-- Gracefully handle changes in site structure
-- Log failures for monitoring and debugging
-
-### Rate Limiting and Ethics
-- Implement respectful delays between requests
-- Follow robots.txt guidelines
-- Handle rate limiting responses appropriately
-
-### Data Quality
-- Validate date formatting and time zones during parsing
-- Ensure complete article content extraction
-- Handle malformed URLs gracefully
-
-### Performance Optimization
-- Implement connection pooling to reduce overhead of repeated HTTP requests
-- Cache parsed content to avoid redundant processing of identical articles
-- Optimize concurrent scraping to reduce total execution time
-- Monitor memory usage to stay below 500MB during normal operation
-
-### Enhanced Deduplication
-- Implement content similarity analysis in addition to title matching
-- Use hashing techniques to quickly identify potentially duplicate articles
-- Provide configurable thresholds for similarity detection
-
-### Data Validation
-- Validate all scraped data fields and provide default values for missing information
-- Implement strict formatting rules for output consistency
-- Add comprehensive field validation to prevent data corruption
-
-## Research Findings
-
-### Performance Optimization Techniques
-1. **Connection Pooling**: Reusing HTTP connections significantly reduces overhead and improves performance
-2. **Caching**: Storing parsed content prevents redundant processing and reduces execution time
-3. **Memory Management**: Monitoring and limiting memory usage prevents crashes during large scraping jobs
-4. **Concurrent Processing**: Using asyncio for concurrent scraping maximizes throughput while respecting rate limits
-
-### Error Handling Best Practices
-1. **Graceful Degradation**: Continuing processing when individual articles fail prevents complete system crashes
-2. **Detailed Logging**: Comprehensive error logging with context aids in troubleshooting and debugging
-3. **Retry Mechanisms**: Automatic retries for transient network errors improve success rates
-4. **Resource Cleanup**: Properly closing connections and releasing resources prevents memory leaks
-
-### Data Quality Improvements
-1. **Enhanced Deduplication**: Content similarity analysis in addition to title matching improves duplicate detection accuracy
-2. **Field Validation**: Validating all data fields and providing defaults ensures consistent output
-3. **Format Consistency**: Standardizing output formatting improves usability and reduces errors
-4. **Metadata Enrichment**: Adding performance metrics and error statistics provides valuable insights
-
-## Recommendations
-
-### For Error Handling Enhancement
-- Implement comprehensive exception handling for all network operations
-- Add detailed logging with appropriate severity levels
-- Create a centralized error handling module for consistent error processing
-- Implement graceful recovery from various failure scenarios
-
-### For Performance Optimization
-- Add connection pooling to reduce HTTP request overhead
-- Implement caching for parsed content to avoid redundant processing
-- Optimize concurrent scraping to reduce total execution time
-- Add memory usage monitoring to prevent resource exhaustion
-
-### For Data Quality Improvement
-- Enhance deduplication algorithm to consider content similarity
-- Add comprehensive field validation with default value assignment
-- Implement consistent output formatting with proper escaping
-- Add handling for articles with very long content
-
-## Implementation Plan Alignment
-
-All research findings align with the implementation plan:
-- Modular architecture supports independent maintenance
-- Asynchronous processing enables efficient concurrent scraping
-- Error handling strategies match planned error handling modules
-- Performance optimization techniques align with planned enhancements
-- Data quality improvements support the enhanced data model
+### Alternatives considered:
+1. No limit on concurrency - Could overwhelm target websites and risk blocking
+2. Higher limits (5-10 concurrent tasks) - Increased risk of being blocked
+3. Lower limits (1-2 concurrent tasks) - Slower overall scraping but safer

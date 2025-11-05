@@ -16,18 +16,24 @@ src_dir = Path(__file__).parent
 sys.path.insert(0, str(src_dir))
 
 from utils.helpers import log_info, log_error, safe_request_with_retry
-from utils.date_filter import parse_article_date, is_within_72_hours
+from utils.date_filter import parse_article_date, is_within_timeframe
 from utils.rate_limiter import rate_limit
+from utils.cache import content_cache
 from models.article import EnhancedNewsArticle
+from config.loader import load_config
 
 
-async def get_cnbc_articles() -> List[Dict[str, Any]]:
+async def get_cnbc_articles(url: str = None) -> List[Dict[str, Any]]:
     """
     Extract article links and metadata from CNBC business page
     
+    Args:
+        url (str, optional): URL to scrape from. If not provided, uses configured URL.
+    
     Returns: List of dictionaries containing article titles and URLs
     """
-    cnbc_business_url = "https://www.cnbc.com/business/"
+    config = load_config()
+    cnbc_business_url = url or config['cnbc_business_url']
     articles = []
     
     print(f"Starting CNBC article extraction from {cnbc_business_url}")
@@ -40,10 +46,10 @@ async def get_cnbc_articles() -> List[Dict[str, Any]]:
         async with httpx.AsyncClient(timeout=30.0, headers={
             'User-Agent': 'Mozilla/5.0 (compatible; NewsScraper/1.0)'
         }) as client:
-            response = await client.get(cnbc_business_url)
+            response = await safe_request_with_retry(client, cnbc_business_url, max_retries=config['max_retries'])
             
-            if response.status_code != 200:
-                print(f"Failed to access CNBC business page: {response.status_code}")
+            if response is None or response.status_code != 200:
+                print(f"Failed to access CNBC business page: {response.status_code if response else 'No response'}")
                 return []
             
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -158,6 +164,12 @@ async def extract_cnbc_content(url: str) -> Optional[Dict[str, Any]]:
     # Apply rate limiting before making the request
     await asyncio.sleep(3.5)  # 3-5 second delay to respect rate limits
     
+    # Check if content is already cached
+    cached_result = content_cache.get(url, "")
+    if cached_result:
+        print(f"Retrieved CNBC article from cache: {cached_result.get('title', '')[:50]}...")
+        return cached_result
+    
     try:
         async with httpx.AsyncClient(timeout=30.0, headers={
             'User-Agent': 'Mozilla/5.0 (compatible; NewsScraper/1.0)',
@@ -166,10 +178,10 @@ async def extract_cnbc_content(url: str) -> Optional[Dict[str, Any]]:
             'Accept-Encoding': 'gzip, deflate',
             'Connection': 'keep-alive',
         }) as client:
-            response = await client.get(url)
+            response = await safe_request_with_retry(client, url, max_retries=config['max_retries'])
             
-            if response.status_code != 200:
-                print(f"Failed to access CNBC article URL: {url} - Status: {response.status_code}")
+            if response is None or response.status_code != 200:
+                print(f"Failed to access CNBC article URL: {url} - Status: {response.status_code if response else 'No response'}")
                 return None
             
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -254,19 +266,25 @@ async def extract_cnbc_content(url: str) -> Optional[Dict[str, Any]]:
             if content:
                 content = ' '.join(content.split())
             
-            if not title or not content:
+            # Validate content length to meet minimum requirement (50 characters)
+            if not title or not content or len(content) < 50:
                 print(f"Insufficient content extracted from CNBC URL: {url}")
                 return None
             
-            print(f"Successfully extracted CNBC article: {title[:50]}...")  # Truncate for display
-            
-            return {
+            result = {
                 'title': title,
                 'content': content,
                 'publication_date': date_text,  # Will be parsed later
                 'url': url,
                 'source': 'CNBC'
             }
+            
+            # Cache the result
+            content_cache.set(url, content, result)
+            
+            print(f"Successfully extracted CNBC article: {title[:50]}...")  # Truncate for display
+            
+            return result
             
     except Exception as e:
         print(f"Error extracting CNBC content from {url}: {str(e)}")

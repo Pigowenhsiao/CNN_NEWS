@@ -31,8 +31,14 @@ A robust Python application that scrapes financial news from both CNN Business a
 
    Or manually using pip:
    ```bash
-   pip install httpx beautifulsoup4 python-dateutil pytest
+   pip install httpx beautifulsoup4 python-dateutil python-dotenv pytest
    ```
+
+3. Create a .env file in the project root to configure your settings (optional, defaults will be used if not provided):
+   ```bash
+   touch .env
+   ```
+   Add configuration variables as needed (see Configuration section below).
 
 ## Usage
 
@@ -79,12 +85,41 @@ src/
 
 ## Configuration
 
-The scraper includes several configurable parameters:
+The scraper can be configured using environment variables loaded from a `.env` file. Create a `.env` file in the project root with the following optional variables:
 
-- **Rate Limiting**: 3-5 second delays between requests
-- **Date Filter**: 72-hour window (3 days)
-- **Output Format**: Markdown with specific naming convention
+```env
+# CNN and CNBC Business URLs
+CNN_BUSINESS_URL=https://www.cnn.com/business
+CNBC_BUSINESS_URL=https://www.cnbc.com/business/
+
+# Rate limiting configuration (in seconds)
+RATE_LIMIT_MIN_DELAY=3.0
+RATE_LIMIT_MAX_DELAY=5.0
+
+# Date filtering (in hours)
+DATE_FILTER_HOURS=72
+
+# Request configuration
+MAX_RETRIES=3
+
+# Concurrency configuration
+CONCURRENT_TASKS_LIMIT=3
+
+# Output configuration
+OUTPUT_FILE_PREFIX=US_News
+```
+
+If these variables are not set, the application will use the default values shown above.
+
+The configuration includes:
+
+- **Rate Limiting**: Configurable delays between requests to avoid being blocked
+- **Date Filter**: Configurable time window in hours for filtering recent articles
+- **Retry Mechanism**: Number of attempts to retry failed requests
+- **Concurrency Control**: Maximum number of concurrent scraping tasks
+- **Output Format**: Configurable prefix for the Markdown output files
 - **Deduplication**: Based on article title normalization
+- **Automatic Cleanup**: Removal of output files older than 30 days
 
 ## Architecture
 

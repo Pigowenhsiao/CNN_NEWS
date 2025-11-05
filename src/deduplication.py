@@ -15,7 +15,7 @@ from models.article import EnhancedNewsArticle
 
 def remove_duplicates(articles: List[EnhancedNewsArticle]) -> List[EnhancedNewsArticle]:
     """
-    Remove duplicate articles based on title to prevent duplicate entries in output
+    Remove duplicate articles based on title and content similarity to prevent duplicate entries in output
     
     Args:
         articles (List[EnhancedNewsArticle]): List of articles to deduplicate
@@ -23,22 +23,44 @@ def remove_duplicates(articles: List[EnhancedNewsArticle]) -> List[EnhancedNewsA
     Returns:
         List[EnhancedNewsArticle]: List of articles with duplicates removed
     """
-    seen_titles = set()
     unique_articles = []
+    seen_titles = set()
+    seen_hashes = set()
     
     for article in articles:
         # Normalize the title for comparison (case-insensitive, whitespace-normalized)
         normalized_title = ' '.join(article.title.lower().split())
         
-        # If we haven't seen this normalized title, add the article to unique list
-        if normalized_title not in seen_titles:
+        # Generate content hash for similarity detection
+        content_hash = generate_content_hash(article.content)
+        
+        # Check both title and content hash
+        is_duplicate = False
+        
+        # Check for title duplication
+        if normalized_title in seen_titles:
+            is_duplicate = True
+        # Check for content duplication using hash
+        elif content_hash in seen_hashes:
+            is_duplicate = True
+        # If same title but different content, check for content similarity
+        else:
+            # Compare with already added articles with the same title
+            same_title_articles = [a for a in unique_articles if ' '.join(a.title.lower().split()) == normalized_title]
+            for existing_article in same_title_articles:
+                if is_similar_content(article.content, existing_article.content):
+                    is_duplicate = True
+                    break
+        
+        if not is_duplicate:
             seen_titles.add(normalized_title)
+            seen_hashes.add(content_hash)
             unique_articles.append(article)
         else:
             # Log that a duplicate was found and skipped (only if logging is available)
             try:
                 from .utils.logger import log_info
-                log_info(f"Skipped duplicate article based on title: {article.title}", "deduplication")
+                log_info(f"Skipped duplicate article based on title/content similarity: {article.title}", "deduplication")
             except ImportError:
                 # If logging isn't available, just continue
                 pass
